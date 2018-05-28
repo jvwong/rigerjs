@@ -18,8 +18,8 @@ router.post('/riger', function(req, res, next) {
   const subprocess = spawn('java', args , opts);
 
   res.set({
-    'Content-Type': 'text/plain',
-    'Connection': 'close' // mui importante
+    'Connection': 'close', // mui importante
+    'Content-Type': 'application/json'
   });
 
   // stream input to program
@@ -31,13 +31,14 @@ router.post('/riger', function(req, res, next) {
   // handle child process errors
   subprocess.stderr.on( 'data',
     data => {
-      req.unpipe( subprocess.stdin );
-      res.status( 206 ).end(data);
+      const message = { error: data.toString() };;
+      res.end( JSON.stringify( message ) );
       console.error( `stderr ${data}` );
     }
   );
 
   // basically happens when req streams to closed pipe...
+  // How to stop writing to subprocess.stdin?
   subprocess.stdin.on( 'error',
     error => {
       console.error( `error stdin ${error}` );
