@@ -17,44 +17,39 @@ router.post('/riger', function(req, res, next) {
   const opts = {};
   const subprocess = spawn('java', args , opts);
 
-  // // stream input to subprocess
-  // req.pipe( subprocess.stdin );
+  res.set({
+    'Content-Type': 'text/plain',
+    'Connection': 'close' // mui importante
+  });
 
-  // // stream from program to client
-  // subprocess.stdout.pipe( res );
+  // stream input to program
+  req.pipe( subprocess.stdin );
 
-  // // handle child process errors
-  // subprocess.stderr.on( 'data',
-  //   data => {
-  //     console.error(`stderr ${data}`);
-  //     appErr = data;
-  //   }
-  // );
+  // stream from program to client
+  subprocess.stdout.pipe( res );
 
-  // // basically happens when req streams to closed pipe...
-  // subprocess.stdin.on( 'error',
-  //   error => {
-  //     console.error(`error stdin ${error}`
-  //   );
-  // });
+  // handle child process errors
+  subprocess.stderr.on( 'data',
+    data => {
+      req.unpipe( subprocess.stdin );
+      res.status( 206 ).end(data);
+      console.error( `stderr ${data}` );
+    }
+  );
 
-  // subprocess.stdin.on( 'finish',
-  //   () => { console.error('stdin finish');
-  // });
+  // basically happens when req streams to closed pipe...
+  subprocess.stdin.on( 'error',
+    error => {
+      console.error( `error stdin ${error}` );
+  });
 
-  // // handle child process events
-  // subprocess.on( 'exit',
-  //   ( code, signal ) => {
-  //     if( code !== 0 ) {
-  //       console.log( `Program errors: ${appErr}`);
-  //       console.log( `subprocess exit code: ${code}`);
-  //     }
-  // });
-
-  // subprocess.on( 'error',
-  //   ( error ) => {
-  //     console.log(`subprocess error: ${error}`);
-  // });
+  // handle child process events
+  subprocess.on( 'exit',
+    ( code, signal ) => {
+      if( code !== 0 ) {
+        console.log( `Exit code: ${code}`);
+      }
+  });
 
 });
 
