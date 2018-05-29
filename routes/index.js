@@ -3,6 +3,44 @@ var router = express.Router();
 var spawn = require('child_process').spawn;
 
 // Create a csv to json transform
+
+/*
+* Helper enabling a function to operate only on
+* chunks capped by a newline
+* @param {function} handleChunk - the handler for the resulting line
+* @returns {string}
+*/
+function newLineStream( handleChunk ) {
+	let buffer = '';
+	return chunk => {
+		let upper = 0, piece = '', lower = 0;
+		buffer += chunk; // add new chunk to existing (if any)
+		while ( ( upper = buffer.indexOf( '\n', lower )) !== -1 ) { // set i to the newline index
+			piece = buffer.substr( lower, upper - lower ); // get segment capped by newline
+			++lower;             // push new lower just past upper
+			handleChunk( piece );   // do something with the newline capped piece
+		}
+		buffer = buffer.substr( lower );
+	}
+}
+
+/*
+* Convert a tab-delimited, newline capped string to JSON object
+* @param {string} line - tab-delimited line
+* @param {array} headers - an ordered array of headers
+* @returns {object}
+*/
+function handleCsvLine( line, headers ) {
+  return line => {
+    const out = {};
+    const values = line.split( '\t', headers.length );
+    headers.forEach( ( key, index ) => {
+      out[ key ] = values[ index ];
+    });
+    return out;
+	}
+}
+
 const { Transform } = require('stream');
 
 class JsonToCsv extends Transform {
@@ -13,17 +51,10 @@ class JsonToCsv extends Transform {
 
   _transform ( data, encoding, callback ) {
     const keys = this.keys;
-    const lines = data.toString().split('/n');
-    lines.forEach( line => {
-      const out = {};
-      const vals = line.split('\t', 6);
-      keys.forEach( ( key, index ) => {
-        out[key] = vals[index];
 
-      });
-      this.push( JSON.stringify(out) );
-    });
-    // this.push( data );
+    newLineStream
+
+    this.push( data );
     callback();
   }
 }
@@ -55,7 +86,7 @@ router.post('/riger', function(req, res, next) {
 
   res.set({
     'Connection': 'close', // mui importante
-    'Content-Type': 'text/plain'
+    'Content-Type': 'application/json'
   });
 
   // stream input to program
@@ -69,6 +100,7 @@ router.post('/riger', function(req, res, next) {
     data => {
       const message = { error: data.toString() };;
       res.end( JSON.stringify( message ) );
+      res.end( message );
       console.error( `stderr ${data}` );
     }
   );
