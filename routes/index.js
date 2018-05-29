@@ -2,6 +2,33 @@ var express = require('express');
 var router = express.Router();
 var spawn = require('child_process').spawn;
 
+// Create a csv to json transform
+const { Transform } = require('stream');
+
+class JsonToCsv extends Transform {
+  constructor( keys, options ) {
+    super( options );
+    this.keys = keys;
+  }
+
+  _transform ( data, encoding, callback ) {
+    const keys = this.keys;
+    const lines = data.toString().split('/n');
+    lines.forEach( line => {
+      const out = {};
+      const vals = line.split('\t', 6);
+      keys.forEach( ( key, index ) => {
+        out[key] = vals[index];
+
+      });
+      this.push( JSON.stringify(out) );
+    });
+    // this.push( data );
+    callback();
+  }
+}
+
+
 /* GET home page. */
 router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
@@ -17,16 +44,25 @@ router.post('/riger', function(req, res, next) {
   const opts = {};
   const subprocess = spawn('java', args , opts);
 
+  const jsonify = new JsonToCsv([
+    'Gene Rank',
+    'Gene Name',
+    'Score',
+    'p-value',
+    'p-value Rank',
+    'Hairpin Ranks'
+  ]);
+
   res.set({
     'Connection': 'close', // mui importante
-    'Content-Type': 'application/json'
+    'Content-Type': 'text/plain'
   });
 
   // stream input to program
   req.pipe( subprocess.stdin );
 
   // stream from program to client
-  subprocess.stdout.pipe( res );
+  subprocess.stdout.pipe( jsonify ).pipe( res );
 
   // handle child process errors
   subprocess.stderr.on( 'data',
