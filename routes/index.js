@@ -8,36 +8,38 @@ var spawn = require('child_process').spawn;
 * Helper enabling a function to operate only on
 * chunks capped by a newline
 * @param {function} handleChunk - the handler for the resulting line
+* @param {array} headers - an ordered array of headers
 * @returns {string}
 */
 function newLineStream( handleChunk ) {
-	let buffer = '';
-	return chunk => {
-		let upper = 0, piece = '', lower = 0;
-		buffer += chunk; // add new chunk to existing (if any)
-		while ( ( upper = buffer.indexOf( '\n', lower )) !== -1 ) { // set i to the newline index
-			piece = buffer.substr( lower, upper - lower ); // get segment capped by newline
-			++lower;             // push new lower just past upper
-			handleChunk( piece );   // do something with the newline capped piece
+  let fragment = '';
+  return chunk => {
+    let result = '';
+    let upper = 0, piece = '', lower = 0;
+		fragment += chunk; // add new chunk to existing (if any)
+		while ( ( upper = fragment.indexOf( '\n', lower )) !== -1 ) { // set i to the newline index
+			piece = fragment.substr( lower, upper - lower ); // get segment capped by newline
+			lower = upper + 1;             // push new lower just past upper
+			result += handleChunk( piece );   // do something with the newline capped piece
 		}
-		buffer = buffer.substr( lower );
+    fragment = fragment.substr( lower );
+    return result;
 	}
 }
 
 /*
 * Convert a tab-delimited, newline capped string to JSON object
-* @param {string} line - tab-delimited line
 * @param {array} headers - an ordered array of headers
-* @returns {object}
+* @returns {function} -
 */
-function handleCsvLine( line, headers ) {
+function handleCsvLine( headers ) {
   return line => {
     const out = {};
     const values = line.split( '\t', headers.length );
     headers.forEach( ( key, index ) => {
       out[ key ] = values[ index ];
     });
-    return out;
+    return JSON.stringify( out );
 	}
 }
 
@@ -51,10 +53,9 @@ class JsonToCsv extends Transform {
 
   _transform ( data, encoding, callback ) {
     const keys = this.keys;
-
-    newLineStream
-
-    this.push( data );
+    const handler = handleCsvLine( keys );
+    const mapToJson = newLineStream( handler );
+    this.push( mapToJson( data ) );
     callback();
   }
 }
@@ -86,7 +87,7 @@ router.post('/riger', function(req, res, next) {
 
   res.set({
     'Connection': 'close', // mui importante
-    'Content-Type': 'application/json'
+    'Content-Type': 'plain/text'
   });
 
   // stream input to program
