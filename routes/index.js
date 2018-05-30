@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var spawn = require('child_process').spawn;
+var _ = require('lodash');
 
 // Create a csv to json transform
 
@@ -12,18 +13,18 @@ var spawn = require('child_process').spawn;
 * @returns {string}
 */
 function newLineStream( handleChunk ) {
+  const result = [];
   let fragment = '';
-  return chunk => {
-    let result = '';
+  return ( chunk, done ) => {
     let upper = 0, piece = '', lower = 0;
 		fragment += chunk; // add new chunk to existing (if any)
 		while ( ( upper = fragment.indexOf( '\n', lower )) !== -1 ) { // set i to the newline index
-			piece = fragment.substr( lower, upper - lower ); // get segment capped by newline
-			lower = upper + 1;             // push new lower just past upper
-			result += handleChunk( piece );   // do something with the newline capped piece
+			piece = fragment.substr( lower, upper - lower ); // get segment, excluding upper
+			lower = upper + 1; // push lower past upper
+			result.push( handleChunk( piece ) );
 		}
     fragment = fragment.substr( lower );
-    return result;
+    if ( done ) return JSON.stringify( result );
 	}
 }
 
@@ -48,15 +49,17 @@ const { Transform } = require('stream');
 class JsonToCsv extends Transform {
   constructor( keys, options ) {
     super( options );
-    this.keys = keys;
+    this.mapToJson = newLineStream( handleCsvLine( keys ) );
   }
 
   _transform ( data, encoding, callback ) {
-    const keys = this.keys;
-    const handler = handleCsvLine( keys );
-    const mapToJson = newLineStream( handler );
-    this.push( mapToJson( data ) );
+    this.push( this.mapToJson( data ) );
     callback();
+  }
+
+  _flush ( cb ) {
+    this.push( this.mapToJson( '', true ) );
+    cb();
   }
 }
 
@@ -116,10 +119,13 @@ router.post('/riger', function(req, res, next) {
   // handle child process events
   subprocess.on( 'exit',
     ( code, signal ) => {
-      if( code !== 0 ) {
-        console.log( `Exit code: ${code}`);
+      if( !code ){
+        console.log( 'OK');
+      } else {
+        console.log( 'Error');
       }
-  });
+    }
+  );
 
 });
 
