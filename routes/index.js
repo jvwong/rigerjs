@@ -40,7 +40,7 @@ function handleCsvLine( headers ) {
     headers.forEach( ( key, index ) => {
       out[ key ] = values[ index ];
     });
-    return JSON.stringify( out );
+    return out;
 	}
 }
 
@@ -90,7 +90,7 @@ router.post('/riger', function(req, res, next) {
 
   res.set({
     'Connection': 'close', // mui importante
-    'Content-Type': 'plain/text'
+    'Content-Type': 'application/json'
   });
 
   // stream input to program
