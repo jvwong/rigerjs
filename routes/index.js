@@ -15,13 +15,19 @@ var _ = require('lodash');
 function newLineStream( handleChunk ) {
   const result = [];
   let fragment = '';
+  let isHeader = true;
   return ( chunk, done ) => {
     let upper = 0, piece = '', lower = 0;
 		fragment += chunk; // add new chunk to existing (if any)
 		while ( ( upper = fragment.indexOf( '\n', lower )) !== -1 ) { // set i to the newline index
 			piece = fragment.substr( lower, upper - lower ); // get segment, excluding upper
-			lower = upper + 1; // push lower past upper
-			result.push( handleChunk( piece ) );
+      lower = upper + 1; // push lower past upper
+      if( isHeader ){
+        handleChunk( piece );
+        isHeader = false;
+      } else {
+        result.push( handleChunk( piece ) );
+      }
 		}
     fragment = fragment.substr( lower );
     if ( done ) return JSON.stringify( result );
@@ -33,8 +39,15 @@ function newLineStream( handleChunk ) {
 * @param {array} headers - an ordered array of headers
 * @returns {function} -
 */
-function handleCsvLine( headers ) {
+function handleCsvLine() {
+  let isHeader = true;
+  let headers = [];
   return line => {
+    if( isHeader ){
+      headers = line.split( '\t' );
+      isHeader = false;
+      return;
+    }
     const out = {};
     const values = line.split( '\t', headers.length );
     headers.forEach( ( key, index ) => {
@@ -47,9 +60,9 @@ function handleCsvLine( headers ) {
 const { Transform } = require('stream');
 
 class JsonToCsv extends Transform {
-  constructor( keys, options ) {
+  constructor( options ) {
     super( options );
-    this.mapToJson = newLineStream( handleCsvLine( keys ) );
+    this.mapToJson = newLineStream( handleCsvLine( ) );
   }
 
   _transform ( data, encoding, callback ) {
@@ -79,14 +92,15 @@ router.post('/riger', function(req, res, next) {
   const opts = {};
   const subprocess = spawn('java', args , opts);
 
-  const jsonify = new JsonToCsv([
-    'Gene Rank',
-    'Gene Name',
-    'Score',
-    'p-value',
-    'p-value Rank',
-    'Hairpin Ranks'
-  ]);
+  // const jsonify = new JsonToCsv([
+  //   'Gene Rank',
+  //   'Gene Name',
+  //   'Score',
+  //   'p-value',
+  //   'p-value Rank',
+  //   'Hairpin Ranks'
+  // ]);
+  const jsonify = new JsonToCsv( );
 
   res.set({
     'Connection': 'close', // mui importante
