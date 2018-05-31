@@ -1,80 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var spawn = require('child_process').spawn;
-var _ = require('lodash');
-
-// Create a csv to json transform
-
-/*
-* Helper enabling a function to operate only on
-* chunks capped by a newline
-* @param {function} handleChunk - the handler for the resulting line
-* @param {array} headers - an ordered array of headers
-* @returns {string}
-*/
-function newLineStream( handleChunk ) {
-  const result = [];
-  let fragment = '';
-  let isHeader = true;
-  return ( chunk, done ) => {
-    let upper = 0, piece = '', lower = 0;
-		fragment += chunk; // add new chunk to existing (if any)
-		while ( ( upper = fragment.indexOf( '\n', lower )) !== -1 ) { // set i to the newline index
-			piece = fragment.substr( lower, upper - lower ); // get segment, excluding upper
-      lower = upper + 1; // push lower past upper
-      if( isHeader ){
-        handleChunk( piece );
-        isHeader = false;
-      } else {
-        result.push( handleChunk( piece ) );
-      }
-		}
-    fragment = fragment.substr( lower );
-    if ( done ) { return JSON.stringify( result) };
-	}
-}
-
-/*
-* Convert a tab-delimited, newline capped string to JSON object
-* @returns {function} - processes line into object
-*/
-function handleCsvLine() {
-  let isHeader = true;
-  let headers = [];
-  return line => {
-    if( isHeader ){
-      headers = line.split( '\t' );
-      isHeader = false;
-      return;
-    }
-    const out = {};
-    const values = line.split( '\t', headers.length );
-    headers.forEach( ( key, index ) => {
-      out[ key ] = values[ index ];
-    });
-    return out;
-	}
-}
-
-const { Transform } = require('stream');
-
-class JsonToCsv extends Transform {
-  constructor( options ) {
-    super( options );
-    this.mapToJson = newLineStream( handleCsvLine( ) );
-  }
-
-  _transform ( data, encoding, callback ) {
-    this.push( this.mapToJson( data ) );
-    callback();
-  }
-
-  _flush ( cb ) {
-    this.push( this.mapToJson( '', true ) );
-    cb();
-  }
-}
-
+var streamUtil = require('./streaming-util.js');
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -91,9 +18,6 @@ router.post('/riger', function(req, res, next) {
   const opts = {};
   const subprocess = spawn('java', args , opts);
 
-  // readableObjectMode is output to next pipe
-  const jsonify = new JsonToCsv( );
-
   res.set({
     'Connection': 'close', // mui importante
     'Content-Type': 'application/json'
@@ -103,7 +27,7 @@ router.post('/riger', function(req, res, next) {
   req.pipe( subprocess.stdin );
 
   // stream from program to client
-  subprocess.stdout.pipe( jsonify ).pipe( res );
+  subprocess.stdout.pipe( streamUtil.jsonifyer ).pipe( res );
 
   // handle child process errors
   subprocess.stderr.on( 'data',
@@ -136,3 +60,6 @@ router.post('/riger', function(req, res, next) {
 });
 
 module.exports = router;
+
+// e.g. curl
+// cat /Users/jeffreywong/Sync/bader_jvwong/Guide/primers/data_analysis/rnai_gene_enrichment_ranking/RIGERJ/resources/inputFileHairpinWeights.txt | curl --data-binary @- -H "Content-Type: text/plain" --request POST http://localhost:3000/riger
