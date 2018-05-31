@@ -30,14 +30,13 @@ function newLineStream( handleChunk ) {
       }
 		}
     fragment = fragment.substr( lower );
-    if ( done ) return JSON.stringify( result );
+    if ( done ) { return JSON.stringify( result) };
 	}
 }
 
 /*
 * Convert a tab-delimited, newline capped string to JSON object
-* @param {array} headers - an ordered array of headers
-* @returns {function} -
+* @returns {function} - processes line into object
 */
 function handleCsvLine() {
   let isHeader = true;
@@ -92,14 +91,7 @@ router.post('/riger', function(req, res, next) {
   const opts = {};
   const subprocess = spawn('java', args , opts);
 
-  // const jsonify = new JsonToCsv([
-  //   'Gene Rank',
-  //   'Gene Name',
-  //   'Score',
-  //   'p-value',
-  //   'p-value Rank',
-  //   'Hairpin Ranks'
-  // ]);
+  // readableObjectMode is output to next pipe
   const jsonify = new JsonToCsv( );
 
   res.set({
