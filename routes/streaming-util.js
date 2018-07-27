@@ -69,4 +69,4 @@ class Jsonify extends Transform {
 }
 
 
-module.exports = { jsonifyer: new Jsonify() };
+module.exports = { Jsonify };
