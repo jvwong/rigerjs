@@ -10,8 +10,9 @@
     <script defer src="javascripts/main.js"></script>
     <h1><%= title %></h1>
     <p>Welcome to <%= title %></p>
-    <input type='file' accept='text/plain' onchange='openFile(event)' /><br>
-    <div id="output"></div>
-    <div id="input"></div>
+    <input type='file' accept='text/plain' onchange='handleUpload(event)' /><br>
+    <div>
+      <ul id="output"></ul>
+    </div>
   </body>
 </html>

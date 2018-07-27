@@ -17,9 +17,9 @@ function rigerJ( req ) {
   // handle child process errors
   subprocess.stderr.on( 'data',
     data => {
-      const message = { error: data.toString() };;
-      res.end( JSON.stringify( message ) );
-      res.end( message );
+      // const message = { error: data.toString() };;
+      // res.end( JSON.stringify( message ) );
+      // res.end( message );
       console.error( `stderr ${data}` );
     }
   );
@@ -37,7 +37,7 @@ function rigerJ( req ) {
       if( !code ){
         console.log( 'OK');
       } else {
-        console.log( 'Error');
+        console.log( `Error code ${code}`);
       }
     }
   );
