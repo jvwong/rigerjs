@@ -31,6 +31,38 @@ const analyzeHaripins = async ( data ) => {
   .catch(error => console.error(`Fetch Error =\n`, error));
 }
 
+const displayOutput = ( data ) => {
+  const topInfo = data.slice(0, 50).map( e => {
+    return e['Gene Rank'] + '. ' + e['Gene Name'] + ': ' + e['p-value']
+  });
+  const topGenes = data.slice(0, 50).map( e => e['Gene Name'] )
+
+  const outputElement = document.getElementById('output');
+
+  const briefh3Node = document.createElement( "h3" );
+  const briefTextNode = document.createTextNode( 'Genes by rank' );
+  briefh3Node.appendChild(briefTextNode);
+  outputElement.appendChild( briefh3Node );
+
+  const briefTextlNode = document.createElement( "div" );
+  briefTextlNode.innerHTML = topGenes.join(' ');
+  outputElement.appendChild(briefTextlNode);
+
+  const detailh3Node = document.createElement( "h3" );
+  const detailTextNode = document.createTextNode( 'Detailed' );
+  detailh3Node.appendChild(detailTextNode);
+  outputElement.appendChild( detailh3Node );
+
+  const detailulNode = document.createElement( "ul" );
+  topInfo.forEach( name => {
+    const node = document.createElement( "li" );
+    const textnode = document.createTextNode( name );
+    node.appendChild( textnode) ;
+    detailulNode.appendChild( node );
+  });
+  outputElement.appendChild(detailulNode);
+}
+
 const handleUpload = async (event) => {
   console.log('handleUpload');
   const file = event.target.files[0];
@@ -38,15 +70,8 @@ const handleUpload = async (event) => {
   try {
     const fileContents = await readUploadedFileAsText(file);
     const analysisResults = await analyzeHaripins( fileContents );
-    const topGenes = analysisResults.slice(0, 50).map( e => e['Gene Name'] );
-    const outputElement = document.getElementById('output');
+    displayOutput( analysisResults );
 
-    topGenes.forEach( name => {
-      const node = document.createElement( "li" );
-      const textnode = document.createTextNode( name );
-      node.appendChild(textnode);
-      outputElement.appendChild(node);
-    });
   } catch (e) {
     console.warn(e.message)
   }
